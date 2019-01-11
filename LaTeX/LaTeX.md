@@ -30,28 +30,28 @@
     字号大小在一个段内或者{}之间生效
     居中：\begin{center} 内容\end{center}
 
-####标题作者日期
+#### 标题作者日期
 
     \title{标题名}
     \author{作者名}
     \date{日期}
     \maketitle
 
-####章节划分
+#### 章节划分
     一级章节\section{章节名}
     二级章节\subsection{章节名}
     三级章节\subsubsection{章节名}
 
-####添加目录
+#### 添加目录
     \tableofcontents
     \newpage  %目录单独站一页
 
-#####添加摘要
+#### 添加摘要
     \begin{abstract}
     摘要内容
     \end{abstract}
 
-####类表环境
+#### 类表环境
     \begin{enumerate}
     \item 第一个东西
     \item 第二个东西
