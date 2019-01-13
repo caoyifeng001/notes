@@ -102,7 +102,7 @@
     git push [remote] [branch]  上传本地指定分支到远程仓库
     git push [remote] --force 强行推送当前分支到远程仓库，即使有冲突
     git push [remote] --all  推送所有分支到远程仓库
-
+    pull = fetch + merge
 
 
 #### 九、撤销
@@ -125,7 +125,10 @@
     
     
     
-    
+#### .gitignore
+
+
+        设置不跟踪文件或目录
     
     
     
