@@ -67,6 +67,7 @@
 #### 七、查看信息
     git status  显示有变更的文件
     git log  显示当前分支的版本历史
+            --oneline 显示标号和commit内容
     git log --stat  显示commit历史，以及每次commit发生变更的文件
     git log -S [keyword]  搜索提交历史，根据关键词
     git log [tag] HEAD --pretty=format:%s 显示某个commit之后的所有变动，每个commit占据一行
