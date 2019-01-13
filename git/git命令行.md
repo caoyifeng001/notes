@@ -49,6 +49,8 @@
     git cherry-pick [commit]  选择一个commit，合并进当前分支
     git branch -d [branch-name] 删除分支
     git push origin --delete [branch-name]  删除远程分支
+    git push origin :[branch-name]  删除远程分支[branch-name]
+    git push origin [branch-name1]:[branch-name2]   将本地分支[branch-name1]推送到远程[branch-name2]
     git branch -dr [remote/branch]
     
 #### 六、标签
