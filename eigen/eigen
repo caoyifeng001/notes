@@ -1,0 +1,445 @@
+#### 模块和头文件
+Module	| Header file |	Contents
+------|--------|--------
+Core | #include<Eigen/Core> | Matrix和Array类，基础的线性代数运算和数组操作
+Geometry | #include<Eigen/Geometry> | 旋转、平移、缩放、2维和3维的各种变换
+LU | #include<Eigen/LU> | 求逆，行列式，LU分解
+Cholesky | #include <Eigen/Cholesky> | LLT和LDLT Cholesky分解
+Householder|#include<Eigen/Householder> | 豪斯霍尔德变换，用于线性代数运算
+SVD|#include<Eigen/SVD> |SVD分解
+QR | #include<Eigen/QR>| QR分解
+Eigenvalues | #include<Eigen/Eigenvalues>|特征值，特征向量分解
+Sparse|#include<Eigen/Sparse>|稀疏矩阵的存储和一些基本的线性运算
+稠密矩阵 |#include<Eigen/Dense> |包含了Core/Geometry/LU/Cholesky/SVD/QR/Eigenvalues模块
+矩阵 |#include<Eigen/Eigen> |包括Dense和Sparse(整合库)
+
+
+### Matrix类
+	Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime>
+	Scalar是表示元素的类型，RowsAtCompileTime为矩阵的行，ColsAtCompileTime为矩阵的列。
+
+#### Vectors向量
+	列向量column-vectors typedef Matrix<float, 3, 1> Vector3f;
+	行向量row-vectors  typedef Matrix<int, 1, 2> RowVector2i;
+
+#### Dynamic
+	typedef Matrix<double, Dynamic, Dynamic> MatrixXd;
+	typedef Matrix<int, Dynamic, 1> VectorXi;
+	Matrix<float, 3, Dynamic> 行确定
+
+#### 构造函数
+	默认的构造函数不执行任何空间分配，也不初始化矩阵的元素。
+	Matrix3f a; MatrixXf b;
+	
+	指定大小的矩阵，只是分配相应大小的空间，未初始化元素。
+	MatrixXf a(10,15); VectorXf b(30);
+	
+	为了对固定大小和动态大小的矩阵提供统一的API，对指定大小的Matrix传递sizes也是合法的（传递也被忽略）。
+	Matrix3f a(3,3);
+
+	可以用构造函数提供4以内尺寸的vector的初始化。
+	Vector2d a(5.0, 6.0); Vector3d b(5.0, 6.0, 7.0); Vector4d c(5.0, 6.0, 7.0, 8.0);
+
+#### 获取元素
+	通过中括号获取元素，对于矩阵是：（行，列）；对于向量，只是传递它的索引，以0为起始。
+	MatrixXd m(2,2);  m(0,0) = 3;	 VectorXd v(2);  v(0) = 4;
+
+	m(index)也可以用于获取矩阵元素，但取决于matrix的存储顺序，默认是按列存储的，当然也可以改为按行。
+	[]操作符可以用于向量元素的获取，但是不能用于matrix。
+
+#### 逗号初始化
+	Matrix3f m;
+	m << 1, 2, 3,
+	     4, 5, 6,
+	     7, 8, 9;
+
+#### resizing
+	matrix的大小可以通过rows()、cols()、size()获取，resize()可以重新调整动态matrix的大小。
+	MatrixXd m(2,5);  m.resize(4,3);	 VectorXd v(2);  v.resize(5);
+
+
+#### assignment 和 resizing
+	assignment（分配）是复制一个矩阵到另外一个，操作符=。Eigen会自动resize左变量大小等于右变量大小；
+	MatrixXf a(2,2); MatrixXf b(3,3); a = b;  a size 3x3
+
+#### 固定尺寸 vs 动态尺寸
+	小的尺寸用固定的，大的尺寸用动态的。使用固定尺寸可以避免动态内存的开辟，固定尺寸只是一个普通数组。
+	Matrix4f mymatrix; 等价于 float mymatrix[16];
+	MatrixXf mymatrix(rows,columns); 等价于 float *mymatrix = new float[rows*columns];
+	使用固定尺寸(<=4*4)需要编译前知道矩阵大小，而且对于足够大的尺寸，如大于32，固定尺寸的收益可以忽略不计，而且可能导致栈崩溃。而且基于环境，Eigen会对动态尺寸做优化（类似于std::vector）；
+
+#### 其他模板参数
+	Matrix<typename Scalar,
+	       int RowsAtCompileTime,
+	       int ColsAtCompileTime,
+	       int Options = 0,
+	       int MaxRowsAtCompileTime = RowsAtCompileTime,
+	       int MaxColsAtCompileTime = ColsAtCompileTime>
+
+	Options是一个比特标志位，这里，我们只介绍一种RowMajor，它表明matrix使用按行存储，默认是按列存储。
+		Matrix<float, 3, 3, RowMajor>
+	MaxRowsAtCompileTime和MaxColsAtCompileTime表示在编译阶段矩阵的上限。主要是避免动态内存分配，使用数组。
+		Matrix<float, Dynamic, Dynamic, 0, 3, 4> 等价于 float [12]
+
+#### 一些方便的定义
+	MatrixNt = Matrix<type, N, N> 特殊地有 MatrxXi = Matrix<int, Dynamic, Dynamic>
+	VectorNt = Matrix<type, N, 1> 比如 Vector2f = Matrix<float, 2, 1>
+	RowVectorNt = Matrix<type, 1, N> 比如 RowVector3d = Matrix<double, 1, 3>
+	N可以是2,3,4或X(Dynamic)
+	t可以是i(int)、f(float)、d(double)、cf(complex)、cd(complex)等。
+
+
+
+### 矩阵和向量的运算
+	Eigen提供了matrix/vector的运算操作，既包括重载了c++的算术运算符+/-/*，也引入了一些特殊的运算比如点乘dot、叉乘cross等。
+	对于Matrix类（matrix和vectors）这些操作只支持线性代数运算，比如：matrix1*matrix2表示矩阵的乘机，vetor+scalar是不允许的。
+	如果你想执行非线性代数操作，请看下一篇（暂时放下）。
+#### 加减 
+	左右两侧变量具有相同的尺寸（行和列），并且元素类型相同（Eigen不自动转化类型）操作包括：
+	
+	二元运算 + 如a+b
+	二元运算 - 如a-b
+	一元运算 - 如-a
+	复合运算 += 如a+=b
+	复合运算 -= 如a-=b
+
+#### 标量乘法和除法
+
+	二元运算 * 如matrix*scalar
+	二元运算 * 如scalar*matrix
+	二元运算 / 如matrix/scalar
+	复合运算 *= 如matrix*=scalar
+	复合运算 /= 如matrix/=scalar
+
+
+#### 表达式模板
+	VectorXf a(50), b(50), c(50), d(50);
+	a = 3*b + 4*c + 5*d;
+	Eigen会编译这段代码最终遍历一次即可运算完成。
+	for(int i = 0; i < 50; ++i)
+	  a[i] = 3*b[i] + 4*c[i] + 5*d[i];
+
+#### 转置和共轭
+	a^T表示transpose转置
+	a*表示conjugate共轭
+	a^*表示adjoint(共轭转置) 伴随矩阵
+
+	对于实数矩阵，conjugate不执行任何操作，adjoint等价于transpose。
+	transpose和adjoint会简单的返回一个代理对象并不对本省做转置。
+	如果执行 b=a.transpose() ，a不变，转置结果被赋值给b。
+	如果执行 a=a.transpose() Eigen在转置结束之前结果会开始写入a，所以a的最终结果不一定等于a的转置。(aliasing issue)
+
+	对 a=a.transpose() 这种操作，可以执行adjointInPlace。
+
+#### 矩阵-矩阵的乘法和矩阵-向量的乘法
+	二元运算 *如a*b
+	复合运算 *=如a*=b
+
+	m=m*m并不会导致别名问题(aliasing issue)，Eigen在这里做了特殊处理，引入了临时变量。
+	tmp = m*m; m = tmp;
+	如果你确定矩阵乘法是安全的（并没有别名问题），你可以使用noalias()函数来避免临时变量 c.noalias() += a*b 。
+
+#### 点运算和叉运算
+	dot()执行点积，cross()执行叉积，点运算得到1*1的矩阵。当然，点运算也可以用u.adjoint()*v来代替。
+	点积只对三维vector有效。对于复数，Eigen的点积是第一个变量共轭和第二个变量的线性积。
+
+#### 基础的归约操作 （Basic arithmetic reduction operations）
+	sum()和、prod()积、mean()平均值 、maxCoeff()最大元素、 minCoeff()最下元素，trace()迹 = a.diagonal().sum()
+	minCoeff和maxCoeff函数也可以返回结果元素的位置信息。float minOfM = m.minCoeff(&i,&j); 
+
+#### 操作的有效性
+	Eigen会检测执行操作的有效性，在编译阶段Eigen会检测它们，错误信息是繁冗的，但错误信息会大写字母突出
+	Matrix3f m;
+	Vector4f v;
+	v = m*v;      // Compile-time error: YOU_MIXED_MATRICES_OF_DIFFERENT_SIZES
+
+	当然动态尺寸的错误要在运行时发现，如果在debug模式，assertions会触发后，程序将崩溃。
+	MatrixXf m(3,3);
+	VectorXf v(4);
+	v = m * v; // Run-time assertion failure here: "invalid matrix product"
+
+
+
+### Array类和元素级操作
+	Array是个类模板（类似于Matrx）,前三个参数是必须指定的，后三个是可选的
+	Type	Tyoedef
+	Array<float,Dynamic,1> 	ArrayXf
+	Array<float,3,1> 	Array3f
+	Array<double,Dynamic,Dynamic> 	ArrayXXd
+	Array<double,3,3> 	Array33d
+
+#### 获取元素
+	操作重载于matrix， << 可以用于初始化array或打印
+	ArrayXXf  m(2,2);
+	m(0,0) = 1.0; m(0,1) = 2.0;
+	m(1,0) = 3.0; m(1,1) = m(0,1) + m(1,0);
+
+	m << 1.0,2.0,
+	     3.0,4.0;
+#### 加法和减法
+	和matrix类似，要求array的尺寸一致。同时支持array+/-scalar的操作！
+
+#### 乘法
+	支持array*scalar（类似于matrix），但是当执行array*array时，执行的是相应元素的乘积，因此两个array必须具有相同的尺寸
+
+#### 其他元素级操作
+	abs 	绝对值
+	sqrt 	平方根
+	min(.) 	两个array相应元素的最小值
+
+#### array和matrix之间的转换
+	Matrix提供了.array()函数将它们转化为Array对象。
+	Array提供了.matrix()函数将它们转化为Matrix对象。
+	在表达式中混合Matrix和Array操作是被禁止的，
+	但是可以将array表达式结果赋值为matrix。
+	另外，Matrix提供了cwiseProduct函数也实现了点乘。
+
+### 块操作
+	block() 起点(i,j)块大小(p,q) 	block(i,j,p,q)动态尺寸  	block<p,q>(i,j)固定尺寸
+	固定尺寸的版本在block较小时速度更快一些。
+
+
+#### 行和列
+	matrix.row(i) i行	matrix.col(j) j列
+ 
+#### 角相关操作
+	左上角p\*q 	matrix.topLeftCorner(p,q); 	matrix.topLeftCorner< p,q >();  p行q列
+	左下角p\*q 	matrix.bottomLeftCorner(p,q); 	matrix.bottomLeftCorner< p,q >();
+	右上角p\*q 	matrix.topRightCorner(p,q); 	matrix.topRightCorner< p,q >();
+	右下角p\*q 	matrix.bottomRightCorner(p,q); 	matrix.bottomRightCorner< p,q >();
+	前q行 	matrix.topRows(q); 	matrix.topRows< q >();
+	后q行 	matrix.bottomRows(q); 	matrix.bottomRows< q >();
+	左p列 	matrix.leftCols(p); 	matrix.leftCols< p >();
+	右p列 	matrix.rightCols(p); 	matrix.rightCols< p >();
+
+#### vectors的块操作
+	前n个 	vector.head(n); 	vector.head< n >();
+	后n个 	vector.tail(n); 	vector.tail< n >();
+	i起始的n个元素 	vector.segment(i,n); 	vector.segment< n >(i);
+
+
+### 初始化
+#### 通常方法
+	Matrix3f m;
+	m << 1, 2, 3,
+	     4, 5, 6,
+	     7, 8, 9;
+	用其他矩阵初始化
+	MatrixXf matA(2, 2);
+	matA << 1, 2, 3, 4;
+	MatrixXf matB(4, 4);
+	matB << matA, matA/10, matA/10, matA;
+	分块初始化
+	Matrix3f m;
+	m.row(0) << 1, 2, 3;
+	m.block(1,0,2,2) << 4, 5, 7, 8;
+	m.col(2).tail(2) << 6, 9;
+
+#### 特殊的矩阵和向量
+	Array33f a1 = Array33f::Zero();
+	ArrayXf a2 = ArrayXf::Zero(3);
+	ArrayXXf a3 = ArrayXXf::Zero(3, 4);
+
+	Constant(value) 常数
+	Random() 随机数
+	Identity() 单位阵
+	LinSpaced(size, low, high) 线性数 table.col(0) = ArrayXf::LinSpaced(10, 0, 90);
+	setZero(), 
+	MatrixBase::setIdentity() 
+	DenseBase::setLinSpaced() 
+
+
+### Reductions, visitors and broadcasting
+TODO
+
+### 原生缓存的接口：Map类
+以复用数据内存的方式，来拷贝数据。
+
+#### Map 类型
+	Map<Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime> >
+	一个指向元素数组的指针，Matrix/vector的尺寸。
+		定义一个float类型的矩阵： Map<MatrixXf> mf(pf,rows,columns); pf是一个数组指针float *。
+		固定尺寸的整形vector声明： Map<const Vector4i> mi(pi);
+	注意:Map没有默认的构造函数，你需要传递一个指针来初始化对象。
+	
+	Mat是灵活地足够去容纳多种不同的数据表示，其他的两个模板参数：
+		Map<typename MatrixType,
+			int MapOptions,
+			typename StrideType>
+	MapOptions标识指针是否是对齐的（Aligned），默认是Unaligned。
+	StrideType表示内存数组的组织方式：行列的步长。
+
+	int array[8];
+	for(int i = 0; i < 8; ++i) array[i] = i;
+	Map<Matrix<int,2,4> >(array)
+	Map<Matrix<int,2,4> >(array)
+	Map<Matrix<int,2,4>, Unaligned, Stride<1,4> >(array) 
+
+#### 使用Map变量
+	typedef Matrix<float,1,Dynamic> MatrixType;
+	typedef Map<MatrixType> MapType;
+	typedef Map<const MatrixType> MapTypeConst;   // a read-only map
+	const int n_dims = 5;
+	  
+	MatrixType m1(n_dims), m2(n_dims);
+	m1.setRandom();
+	m2.setRandom();
+	float *p = &m2(0);  // get the address storing the data for m2
+	MapType m2map(p,m2.size());   // m2map shares data with m2
+	MapTypeConst m2mapconst(p,m2.size());  // a read-only accessor for m2
+	cout << "m1: " << m1 << endl;
+	cout << "m2: " << m2 << endl;
+	cout << "Squared euclidean distance: " << (m1-m2).squaredNorm() << endl;
+	cout << "Squared euclidean distance, using map: " <<
+	  (m1-m2map).squaredNorm() << endl;
+	m2map(3) = 7;   // this will change m2, since they share the same array
+	cout << "Updated m2: " << m2 << endl;
+	cout << "m2 coefficient 2, constant accessor: " << m2mapconst(2) << endl;
+	/* m2mapconst(2) = 5; */   // this yields a compile-time error
+
+	输出
+
+	m1:   0.68 -0.211  0.566  0.597  0.823
+	m2: -0.605  -0.33  0.536 -0.444  0.108
+	Squared euclidean distance: 3.26
+	Squared euclidean distance, using map: 3.26
+	Updated m2: -0.605  -0.33  0.536      7  0.108
+	m2 coefficient 2, constant accessor: 0.536
+
+#### 改变mapped数组
+	int data[] = {1,2,3,4,5,6,7,8,9};
+	Map<RowVectorXi> v(data,4);
+	new (&v) Map<RowVectorXi>(data+4,5);  // 5 6 7 8 9
+
+
+### Reshape
+	reshape操作是改变matrix的尺寸大小但保持元素不变。采用的方法是创建一个不同“视图” Map。
+
+	MatrixXf M1(3,3);    // Column-major storage
+	M1 << 1, 2, 3,
+	      4, 5, 6,
+	      7, 8, 9;
+	Map<RowVectorXf> v1(M1.data(), M1.size());
+	cout << "v1:" << endl << v1 << endl;
+	Matrix<float,Dynamic,Dynamic,RowMajor> M2(M1);
+	Map<RowVectorXf> v2(M2.data(), M2.size());
+	cout << "v2:" << endl << v2 << endl;
+
+	v1:
+	1 4 7 2 5 8 3 6 9
+	v2:
+	1 2 3 4 5 6 7 8 9	
+
+	reshape 2*6的矩阵到 6*2
+
+	MatrixXf M1(2,6);    // Column-major storage
+	M1 << 1, 2, 3,  4,  5,  6,
+	      7, 8, 9, 10, 11, 12;
+	Map<MatrixXf> M2(M1.data(), 6,2);
+	cout << "M2:" << endl << M2 << endl;
+
+	M2:
+	 1  4
+	 7 10
+	 2  5
+	 8 11
+	 3  6
+	 9 12
+
+#### Slicing
+
+	也是通过Map实现的，比如：每p个元素获取一个。
+
+	RowVectorXf v = RowVectorXf::LinSpaced(20,0,19);
+	cout << "Input:" << endl << v << endl;
+	Map<RowVectorXf,0,InnerStride<2> > v2(v.data(), v.size()/2);
+	cout << "Even:" << v2 << endl;
+
+
+	Input:
+	 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
+	Even: 0  2  4  6  8 10 12 14 16 18
+
+### Aliasing
+
+### 存储顺序
+
+
+## 稠密线性问题和矩阵分解 Dense linear problems and decompositions
+
+
+### 线性代数和分解
+#### 基本的线性分解
+	Vector3f x = A.colPivHouseholderQr().solve(b); 等同于
+	ColPivHouseholderQR<Matrix3f> dec(A);
+	Vector3f x = dec.solve(b);
+	其他方法类似
+
+Decomposition |	Method | Requirements on the matrix | Speed(small-to-medium) | Speed(large) | Accuracy
+--------------|---------|----------------------------|------------------------|--------------|--------
+PartialPivLU | partialPivLu()  | Invertible | ++ |	++ |	+
+FullPivLU | fullPivLu() |	None |	- | - - | +++
+HouseholderQR |	householderQr() |	None |	++ |	++ |	+
+ColPivHouseholderQR |	colPivHouseholderQr() |	None |	+ |	- |	+++
+FullPivHouseholderQR |	fullPivHouseholderQr() |	None |	- |	- - |	+++
+CompleteOrthogonalDecomposition |	completeOrthogonalDecomposition() |	None |	+ |	- |	+++
+LLT |	llt() 	|Positive definite |	+++ |	+++ 	|+
+LDLT 	|ldlt() |	Positive or negative semidefinite |	+++ 	|+ 	|++
+BDCSVD |	bdcSvd() |	None 	|- |	- |	+++
+JacobiSVD |	jacobiSvd() 	|None |	- |	- - - 	|+++ 
+
+
+#### 查看是否有解 
+	 double relative_error = (A*x - b).norm() / b.norm(); // norm() is L2 norm
+
+
+####  eigenvalues and eigenvectors 特征值、特征向量
+	Matrix2f A;
+	A << 1, 2, 2, 3;
+	cout << "Here is the matrix A:\n" << A << endl;
+	SelfAdjointEigenSolver<Matrix2f> eigensolver(A);
+	if (eigensolver.info() != Success) abort();
+	cout << "The eigenvalues of A are:\n" << eigensolver.eigenvalues() << endl;
+	cout << "Here's a matrix whose columns are eigenvectors of A \n"
+	<< "corresponding to these eigenvalues:\n"
+	<< eigensolver.eigenvectors() << endl;
+
+
+#### inverse and determinant  逆和行列式
+	 A.determinant() 
+	 A.inverse()
+
+#### 最小二乘求解
+	MatrixXf A = MatrixXf::Random(3, 2);
+	VectorXf b = VectorXf::Random(3);
+	A.bdcSvd(ComputeThinU | ComputeThinV).solve(b)
+
+
+### 稀疏线性代数
+
+
+### 立体几何
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
